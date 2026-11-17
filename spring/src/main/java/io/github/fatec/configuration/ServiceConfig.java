@@ -1,6 +1,7 @@
 package io.github.fatec.configuration;
 
 import io.github.fatec.event.DoacaoPublicador;
+import io.github.fatec.integration.CampanhaIntegration;
 import io.github.fatec.repository.CampanhaLocalRepository;
 import io.github.fatec.repository.DoacaoRepository;
 import io.github.fatec.service.CampanhaLocalService;
@@ -35,9 +36,10 @@ public class ServiceConfig {
                                        PoliticaDeTentativas politicaDeTentativas,
                                        DoacaoRepository doacaoRepository,
                                        CampanhaLocalRepository campanhaLocalRepository,
-                                       DoacaoPublicador publicador) {
+                                       DoacaoPublicador publicador,
+                                       CampanhaIntegration campanhaIntegration) {
         return new DoacaoService(registroDoacaoService, transacao, politicaDeTentativas,
-                doacaoRepository, campanhaLocalRepository, publicador);
+                doacaoRepository, campanhaLocalRepository, publicador, campanhaIntegration);
     }
 
     @Bean

@@ -10,6 +10,8 @@ import io.github.fatec.service.dto.ResultadoDoacao;
 import io.github.fatec.service.exception.DoacaoRecusadaException;
 import io.github.fatec.transaction.ConflitoDeConcorrenciaException;
 import io.github.fatec.transaction.Transacao;
+import io.github.fatec.integration.CampanhaIntegration;
+import java.util.Optional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -26,26 +28,30 @@ public class DoacaoService {
     private final DoacaoRepository doacaoRepository;
     private final CampanhaLocalRepository campanhaLocalRepository;
     private final DoacaoPublicador publicador;
+    private final CampanhaIntegration campanhaIntegration;
 
     public DoacaoService(RegistroDoacaoService registroDoacaoService,
                          Transacao transacao,
                          PoliticaDeTentativas politica,
                          DoacaoRepository doacaoRepository,
                          CampanhaLocalRepository campanhaLocalRepository,
-                         DoacaoPublicador publicador) {
+                         DoacaoPublicador publicador,
+                         CampanhaIntegration campanhaIntegration) {
         this.registroDoacaoService = registroDoacaoService;
         this.transacao = transacao;
         this.politica = politica;
         this.doacaoRepository = doacaoRepository;
         this.campanhaLocalRepository = campanhaLocalRepository;
         this.publicador = publicador;
+        this.campanhaIntegration = campanhaIntegration;
     }
 
     public ResultadoDoacao doar(String campanhaId, BigDecimal valor, String doadorId, String doadorNome) {
         validarPedido(campanhaId, valor);
 
-        // A vaquinha existe na cópia local? (404)
+        // A vaquinha existe na cópia local? Se não, pergunta para a Campanha. Não achou em nenhum: 404
         CampanhaLocal campanha = campanhaLocalRepository.findById(campanhaId)
+                .or(() -> buscarNaCampanha(campanhaId))
                 .orElseThrow(() -> new NoSuchElementException("Vaquinha não encontrada"));
 
         OperacaoDoacao operacao = OperacaoDoacao.iniciar(campanha, valor, doadorId, doadorNome);   // PENDENTE
@@ -84,6 +90,16 @@ public class DoacaoService {
         operacao.falhar("Conflitos demais seguidos");                                              // CONFLITO -> ERRO
         publicador.publicarOperacao(operacao);
         throw new IllegalStateException("Muitas pessoas estão doando nesta vaquinha agora. Tente novamente em instantes.");
+    }
+
+    // Fallback da cópia local: busca na Campanha (HTTP) e grava a cópia, para as próximas doações.
+    private Optional<CampanhaLocal> buscarNaCampanha(String campanhaId) {
+        Optional<CampanhaLocal> remota = campanhaIntegration.buscar(campanhaId);
+        if (remota.isEmpty()) {
+            return Optional.empty();
+        }
+        campanhaLocalRepository.sincronizar(remota.get());
+        return campanhaLocalRepository.findById(campanhaId);   // relê para vir com a versao do banco
     }
 
     public List<Doacao> listarPorCampanha(String campanhaId) {

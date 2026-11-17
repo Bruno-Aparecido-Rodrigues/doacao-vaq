@@ -7,25 +7,59 @@ spring:
       auto-index-creation: true
       uri: mongodb://localhost:27017/vaquinha-doacao?directConnection=true
   rabbitmq:
-    # CloudAMQP. A senha NÃO fica no repositório: defina a variável RABBITMQ_PASSWORD
     host: ${RABBITMQ_HOST:jaragua.lmq.cloudamqp.com}
     port: ${RABBITMQ_PORT:5671}
-    username: ${RABBITMQ_USERNAME:ejsjhrca}
+    username: ${RABBITMQ_USERNAME:kegxjddm}
     password: ${RABBITMQ_PASSWORD}
-    virtual-host: ${RABBITMQ_VHOST:ejsjhrca}
+    virtual-host: ${RABBITMQ_VHOST:kegxjddm}
     ssl:
       enabled: ${RABBITMQ_SSL:true}
 
 event:
   exchange: vaquinha.eventos
+  # Retry das mensagens: exchange própria do serviço, 3 novas tentativas, 10s entre elas
+  retry:
+    exchange: doacao.retry
+    max-retries: 3
+    delay: 10s
   campanha:
     queue: doacao.campanha-eventos
+    dead-letter: doacao.campanha-eventos.dead-letter
+    parking-lot: doacao.campanha-eventos.parking-lot
     routing-key: campanha.*
   doacao-realizada:
     routing-key: doacao.realizada
   operacao:
     routing-key: operacao.doacao
 
-# Quantas vezes uma doação tenta de novo depois de um conflito (PoliticaDeTentativas)
+# Quantas vezes uma doação tenta de novo depois de um conflito
 doacao:
   max-tentativas: 5
+
+# ---------- Integração HTTP com a Campanha (Feign + Retry + fallback)
+campanha:
+  url: ${CAMPANHA_URL:http://localhost:8082}
+
+spring.cloud.openfeign.client.config.campanha:
+  connect-timeout: 2000
+  read-timeout: 3000
+  logger-level: basic
+
+resilience4j:
+  retry:
+    instances:
+      campanha:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - feign.RetryableException
+          - feign.FeignException$InternalServerError
+          - feign.FeignException$BadGateway
+          - feign.FeignException$ServiceUnavailable
+          - feign.FeignException$GatewayTimeout
+        ignore-exceptions:
+          - feign.FeignException$NotFound
+
+logging:
+  level:
+    io.github.fatec.integration.client.CampanhaClient: DEBUG
