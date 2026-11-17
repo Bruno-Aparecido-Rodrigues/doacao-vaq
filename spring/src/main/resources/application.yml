@@ -1,0 +1,31 @@
+server:
+  port: 8083
+
+spring:
+  data:
+    mongodb:
+      auto-index-creation: true
+      uri: mongodb://localhost:27017/vaquinha-doacao?directConnection=true
+  rabbitmq:
+    # CloudAMQP. A senha NÃO fica no repositório: defina a variável RABBITMQ_PASSWORD
+    host: ${RABBITMQ_HOST:jaragua.lmq.cloudamqp.com}
+    port: ${RABBITMQ_PORT:5671}
+    username: ${RABBITMQ_USERNAME:ejsjhrca}
+    password: ${RABBITMQ_PASSWORD}
+    virtual-host: ${RABBITMQ_VHOST:ejsjhrca}
+    ssl:
+      enabled: ${RABBITMQ_SSL:true}
+
+event:
+  exchange: vaquinha.eventos
+  campanha:
+    queue: doacao.campanha-eventos
+    routing-key: campanha.*
+  doacao-realizada:
+    routing-key: doacao.realizada
+  operacao:
+    routing-key: operacao.doacao
+
+# Quantas vezes uma doação tenta de novo depois de um conflito (PoliticaDeTentativas)
+doacao:
+  max-tentativas: 5
