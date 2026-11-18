@@ -1,11 +1,11 @@
 server:
-  port: 8083
+  port: ${PORT:8083}
 
 spring:
   data:
     mongodb:
       auto-index-creation: true
-      uri: mongodb://localhost:27017/vaquinha-doacao?directConnection=true
+      uri: ${MONGO_URI:mongodb://localhost:27017/vaquinha-doacao?directConnection=true}
   rabbitmq:
     host: ${RABBITMQ_HOST:jaragua.lmq.cloudamqp.com}
     port: ${RABBITMQ_PORT:5671}
